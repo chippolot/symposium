@@ -83,6 +83,68 @@ export default function ChatRoom({ params }: ChatPageProps) {
         initializeRoom()
     }, [roomId, router])
 
+    // Set up real-time subscriptions
+    useEffect(() => {
+        if (!roomId) return
+
+        // Subscribe to new messages
+        const messagesSubscription = supabase
+            .channel(`messages:${roomId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `room_id=eq.${roomId}`
+                },
+                async (payload) => {
+                    console.log('New message received:', payload.new)
+                    // Fetch the message with profile data
+                    const { data: messageWithProfile } = await supabase
+                        .from('messages')
+                        .select(`
+              *,
+              profiles (
+                name,
+                email
+              )
+            `)
+                        .eq('id', payload.new.id)
+                        .single()
+
+                    if (messageWithProfile) {
+                        setMessages(prev => [...prev, messageWithProfile])
+                    }
+                }
+            )
+            .subscribe()
+
+        // Subscribe to participant changes
+        const participantsSubscription = supabase
+            .channel(`participants:${roomId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'participants',
+                    filter: `room_id=eq.${roomId}`
+                },
+                () => {
+                    // Reload participants when someone joins/leaves
+                    loadParticipants()
+                }
+            )
+            .subscribe()
+
+        // Cleanup subscriptions
+        return () => {
+            supabase.removeChannel(messagesSubscription)
+            supabase.removeChannel(participantsSubscription)
+        }
+    }, [roomId])
+
     // Load messages
     const loadMessages = async () => {
         const { data, error } = await supabase
@@ -96,9 +158,6 @@ export default function ChatRoom({ params }: ChatPageProps) {
       `)
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
-
-        console.log('Raw messages data:', data) // ADD THIS LINE
-        console.log('Messages query error:', error) // ADD THIS LINE
 
         if (error) {
             console.error('Error loading messages:', error)
@@ -174,7 +233,6 @@ export default function ChatRoom({ params }: ChatPageProps) {
             }
 
             // AI response will be added via real-time subscription
-            // or we'll add it here if not using real-time yet
             const aiResponse = await response.json()
 
             await supabase
@@ -189,8 +247,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     }
                 ])
 
-            // Reload messages to show the new ones
-            await loadMessages()
+            // No need to reload messages - real-time subscription will handle it!
 
         } catch (error) {
             console.error('Error sending message:', error)
@@ -266,8 +323,8 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 >
                                     <div
                                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === 'user'
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-white border text-gray-900'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-white border text-gray-900'
                                             }`}
                                     >
                                         {message.role === 'user' && (
