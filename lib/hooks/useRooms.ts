@@ -58,7 +58,7 @@ export function useRooms(userId?: string) {
             // Get additional details for each room
             const roomsWithDetails = await Promise.all(
                 (participantRooms || []).map(async (participant) => {
-                    const room = participant.rooms as Room
+                    const room = participant.rooms as unknown as Room
 
                     // Get participant count
                     const { count: participantCount } = await supabase
