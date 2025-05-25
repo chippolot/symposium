@@ -10,14 +10,70 @@ import Link from 'next/link'
 export default function Home() {
     const [user, setUser] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [authError, setAuthError] = useState<string | null>(null)
     const { rooms, loading: roomsLoading, error: roomsError, refreshRooms } = useRooms(user?.id)
 
     useEffect(() => {
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser()
-            setUser(user)
+
+            if (user) {
+                // Check if user's email is authorized
+                try {
+                    const response = await fetch('/api/auth/check', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: user.email })
+                    })
+
+                    const result = await response.json()
+
+                    if (!result.allowed) {
+                        // User is not authorized, sign them out
+                        await supabase.auth.signOut()
+                        setAuthError(`The email "${user.email}" is not authorized to access Symposium. Please contact the administrator for access.`)
+                        setUser(null)
+                    } else {
+                        setUser(user)
+                    }
+                } catch (error) {
+                    console.error('Auth check error:', error)
+                    setAuthError('Error checking authorization. Please try signing in again.')
+                    await supabase.auth.signOut()
+                    setUser(null)
+                }
+            }
+
             setLoading(false)
         }
+
+        // Check for auth errors in URL params
+        const urlParams = new URLSearchParams(window.location.search)
+        const error = urlParams.get('error')
+        const email = urlParams.get('email')
+
+        if (error) {
+            switch (error) {
+                case 'unauthorized_email':
+                    setAuthError(`The email "${email}" is not authorized to access Symposium. Please contact the administrator for access.`)
+                    break
+                case 'auth_failed':
+                    setAuthError('Authentication failed. Please try again.')
+                    break
+                case 'server_error':
+                    setAuthError('Server error occurred. Please try again later.')
+                    break
+                case 'no_code':
+                    setAuthError('Authentication code missing. Please try signing in again.')
+                    break
+                default:
+                    setAuthError('An unknown error occurred during sign in.')
+            }
+
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname)
+        }
+
         getUser()
     }, [])
 
@@ -80,6 +136,35 @@ export default function Home() {
 
             {/* Main Content */}
             <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Auth Error Display */}
+                {authError && (
+                    <div className="mb-6">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm text-red-700">{authError}</p>
+                                </div>
+                                <div className="ml-auto pl-3">
+                                    <button
+                                        onClick={() => setAuthError(null)}
+                                        className="text-red-400 hover:text-red-600"
+                                    >
+                                        <span className="sr-only">Dismiss</span>
+                                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {!user ? (
                     // Landing Page
                     <div className="text-center">
@@ -179,24 +264,24 @@ export default function Home() {
                             </div>
                         ) : rooms.length === 0 ? (
                             // Empty State
-                            <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-                                <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-                                <h3 className="text-xl font-semibold text-gray-900 mb-3">No conversations yet</h3>
-                                <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                            <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
+                                <MessageCircle className="h-12 sm:h-16 w-12 sm:w-16 text-gray-400 mx-auto mb-4 sm:mb-6" />
+                                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-3">No conversations yet</h3>
+                                <p className="text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base">
                                     Create your first symposium to start collaborating with AI.
                                     Invite friends, ask questions, and explore ideas together.
                                 </p>
                                 <Link
                                     href="/create"
-                                    className="bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center space-x-2"
+                                    className="bg-indigo-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center space-x-2 text-sm sm:text-base"
                                 >
-                                    <Plus className="h-5 w-5" />
+                                    <Plus className="h-4 sm:h-5 w-4 sm:w-5" />
                                     <span>Create Your First Room</span>
                                 </Link>
                             </div>
                         ) : (
-                            // Rooms Grid
-                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            // Rooms Grid - Mobile Optimized
+                            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 {rooms.map((room) => (
                                     <RoomCard
                                         key={room.id}

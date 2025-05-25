@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useAuthGuard } from '@/lib/auth-guard'
 import { Room, Message, Participant } from '@/lib/supabase'
 import { ArrowLeft, Send, Users, Share2, Copy } from 'lucide-react'
 import Link from 'next/link'
@@ -13,7 +14,7 @@ interface ChatPageProps {
 
 export default function ChatRoom({ params }: ChatPageProps) {
     const router = useRouter()
-    const [user, setUser] = useState<any>(null)
+    const { user, loading: authLoading, authorized } = useAuthGuard()
     const [room, setRoom] = useState<Room | null>(null)
     const [messages, setMessages] = useState<Message[]>([])
     const [participants, setParticipants] = useState<Participant[]>([])
@@ -39,15 +40,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
     // Initialize room and user
     useEffect(() => {
         const initializeRoom = async () => {
-            try {
-                // Get current user
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) {
-                    router.push('/')
-                    return
-                }
-                setUser(user)
+            if (!user) return
 
+            try {
                 // Get room details
                 const { data: roomData, error: roomError } = await supabase
                     .from('rooms')
@@ -84,7 +79,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
         }
 
         initializeRoom()
-    }, [roomId, router])
+    }, [roomId, router, user])
 
     // Set up real-time subscriptions
     useEffect(() => {
@@ -361,25 +356,28 @@ export default function ChatRoom({ params }: ChatPageProps) {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            {/* Header */}
-            <header className="bg-white shadow-sm border-b px-4 py-3">
+            {/* Mobile-Optimized Header */}
+            <header className="bg-white shadow-sm border-b px-4 py-3 sticky top-0 z-10">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <Link href="/" className="text-gray-600 hover:text-gray-900">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <Link href="/" className="text-gray-600 hover:text-gray-900 flex-shrink-0">
                             <ArrowLeft className="h-5 w-5" />
                         </Link>
-                        <div>
-                            <h1 className="text-lg font-semibold text-gray-900">{room?.name}</h1>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg font-semibold text-gray-900 truncate">{room?.name}</h1>
                             <p className="text-sm text-gray-500">
                                 {participants.length} participant{participants.length !== 1 ? 's' : ''}
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1 flex-shrink-0">
                         <button
                             onClick={() => setShowParticipants(!showParticipants)}
-                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                            className={`p-2 rounded-lg transition-colors ${showParticipants
+                                    ? 'bg-indigo-100 text-indigo-600'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
                         >
                             <Users className="h-5 w-5" />
                         </button>
@@ -393,14 +391,17 @@ export default function ChatRoom({ params }: ChatPageProps) {
                 </div>
             </header>
 
-            <div className="flex-1 flex">
+            <div className="flex-1 flex relative">
                 {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col">
+                <div className={`flex-1 flex flex-col transition-all duration-300 ${showParticipants ? 'lg:mr-64' : ''
+                    }`}>
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
                         {messages.length === 0 ? (
-                            <div className="text-center text-gray-500 mt-8">
-                                <p>Start the conversation! Ask the AI anything.</p>
+                            <div className="text-center text-gray-500 mt-8 px-4">
+                                <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                <p className="text-base">Start the conversation!</p>
+                                <p className="text-sm mt-1">Ask the AI anything to begin your collaborative discussion.</p>
                             </div>
                         ) : (
                             messages.map((message) => (
@@ -409,7 +410,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
                                     <div
-                                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === 'user'
+                                        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${message.role === 'user'
                                                 ? message.user_id === user?.id
                                                     ? 'bg-indigo-600 text-white' // Your messages - indigo
                                                     : 'bg-emerald-600 text-white' // Other users - emerald/green
@@ -434,7 +435,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                                 </p>
                                             </div>
                                         )}
-                                        <p className="whitespace-pre-wrap">{message.content}</p>
+                                        <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">{message.content}</p>
                                     </div>
                                 </div>
                             ))
@@ -442,31 +443,42 @@ export default function ChatRoom({ params }: ChatPageProps) {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Message Input */}
-                    <div className="border-t bg-white p-4">
+                    {/* Mobile-Optimized Message Input */}
+                    <div className="border-t bg-white p-3 sm:p-4 safe-area-bottom">
                         {/* Typing Indicator */}
                         {typingUsers.length > 0 && (
-                            <div className="mb-2 text-sm text-gray-500 italic">
-                                {typingUsers.length === 1
-                                    ? `${typingUsers[0]} is typing...`
-                                    : `${typingUsers.slice(0, -1).join(', ')} and ${typingUsers[typingUsers.length - 1]} are typing...`
-                                }
+                            <div className="mb-2 px-1">
+                                <div className="bg-gray-100 rounded-full px-3 py-1 inline-block">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="flex space-x-1">
+                                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                            <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                        </div>
+                                        <span className="text-xs text-gray-500">
+                                            {typingUsers.length === 1
+                                                ? `${typingUsers[0]} is typing...`
+                                                : `${typingUsers.slice(0, -1).join(', ')} and ${typingUsers[typingUsers.length - 1]} are typing...`
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
-                        <form onSubmit={sendMessage} className="flex space-x-2">
+                        <form onSubmit={sendMessage} className="flex space-x-2 sm:space-x-3">
                             <input
                                 type="text"
                                 value={newMessage}
                                 onChange={(e) => handleTyping(e.target.value)}
                                 placeholder="Ask the AI anything..."
                                 disabled={sending}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
+                                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-base"
                             />
                             <button
                                 type="submit"
                                 disabled={sending || !newMessage.trim()}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 sm:px-4 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
                             >
                                 {sending ? (
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -478,21 +490,65 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     </div>
                 </div>
 
-                {/* Participants Sidebar */}
+                {/* Mobile-Optimized Participants Sidebar */}
                 {showParticipants && (
-                    <div className="w-64 bg-white border-l p-4">
-                        <h3 className="font-semibold text-gray-900 mb-4">Participants</h3>
-                        <div className="space-y-2">
-                            {participants.map((participant) => (
-                                <div key={participant.id} className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <span className="text-sm text-gray-700">
-                                        {participant.profiles?.name || participant.profiles?.email?.split('@')[0] || 'Anonymous'}
-                                    </span>
+                    <>
+                        {/* Mobile Overlay */}
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+                            onClick={() => setShowParticipants(false)}
+                        ></div>
+
+                        {/* Sidebar */}
+                        <div className={`
+              fixed lg:absolute top-0 right-0 h-full w-80 max-w-[85vw] bg-white z-30 lg:z-10
+              transform transition-transform duration-300 ease-in-out
+              lg:transform-none lg:relative lg:w-64
+              ${showParticipants ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+              border-l shadow-lg lg:shadow-none
+            `}>
+                            <div className="p-4 border-b lg:border-b-0">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-semibold text-gray-900">Participants</h3>
+                                    <button
+                                        onClick={() => setShowParticipants(false)}
+                                        className="lg:hidden p-1 rounded text-gray-400 hover:text-gray-600"
+                                    >
+                                        <ArrowLeft className="h-5 w-5" />
+                                    </button>
                                 </div>
-                            ))}
+                            </div>
+
+                            <div className="p-4 space-y-3">
+                                {participants.map((participant) => (
+                                    <div key={participant.id} className="flex items-center space-x-3">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-gray-700 truncate">
+                                                {participant.profiles?.name || participant.profiles?.email?.split('@')[0] || 'Anonymous'}
+                                            </p>
+                                            {participant.profiles?.email && (
+                                                <p className="text-xs text-gray-500 truncate">
+                                                    {participant.profiles.email}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Invite Section */}
+                                <div className="pt-4 border-t">
+                                    <button
+                                        onClick={copyRoomLink}
+                                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                        <span className="text-sm font-medium">Copy invite link</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
         </div>
