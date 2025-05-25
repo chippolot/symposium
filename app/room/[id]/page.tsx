@@ -97,6 +97,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
 
+        console.log('Raw messages data:', data) // ADD THIS LINE
+        console.log('Messages query error:', error) // ADD THIS LINE
+
         if (error) {
             console.error('Error loading messages:', error)
             return
@@ -263,13 +266,13 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 >
                                     <div
                                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === 'user'
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'bg-white border text-gray-900'
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-white border text-gray-900'
                                             }`}
                                     >
                                         {message.role === 'user' && (
                                             <p className="text-xs opacity-75 mb-1">
-                                                {message.profiles?.name || 'You'}
+                                                {message.user_id === user?.id ? 'You' : (message.profiles?.name || message.profiles?.email?.split('@')[0] || 'Anonymous')}
                                             </p>
                                         )}
                                         {message.role === 'assistant' && (
@@ -318,7 +321,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 <div key={participant.id} className="flex items-center space-x-2">
                                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                     <span className="text-sm text-gray-700">
-                                        {participant.profiles?.name || participant.profiles?.email || 'Anonymous'}
+                                        {participant.profiles?.name || participant.profiles?.email?.split('@')[0] || 'Anonymous'}
                                     </span>
                                 </div>
                             ))}
