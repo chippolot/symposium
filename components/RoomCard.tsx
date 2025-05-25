@@ -27,8 +27,9 @@ interface RoomCardProps {
 
 export default function RoomCard({ room, currentUserId }: RoomCardProps) {
     const isHost = room.host_user_id === currentUserId
-    const lastMessagePreview = room.last_message?.content.slice(0, 100) +
-        (room.last_message?.content.length > 100 ? '...' : '')
+    const lastMessagePreview = room.last_message?.content
+        ? (room.last_message.content.slice(0, 100) + (room.last_message.content.length > 100 ? '...' : ''))
+        : ''
 
     const timeAgo = (dateString: string) => {
         const now = new Date()
