@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { Room, Message, Participant } from '@/lib/supabase'
-import { ArrowLeft, Send, Users, Share2, Copy } from 'lucide-react'
+import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface ChatPageProps {
