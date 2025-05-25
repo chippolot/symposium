@@ -21,6 +21,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
     const [loading, setLoading] = useState(true)
     const [sending, setSending] = useState(false)
     const [showParticipants, setShowParticipants] = useState(false)
+    const [typingUsers, setTypingUsers] = useState<string[]>([])
+    const [isTyping, setIsTyping] = useState(false)
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const roomId = params.id
 
@@ -138,10 +141,35 @@ export default function ChatRoom({ params }: ChatPageProps) {
             )
             .subscribe()
 
+        // Subscribe to typing indicators
+        const typingSubscription = supabase
+            .channel(`typing:${roomId}`)
+            .on('broadcast', { event: 'typing' }, (payload) => {
+                const { user_id, user_name, is_typing } = payload.payload
+
+                // Don't show typing indicator for current user
+                if (user_id === user?.id) return
+
+                setTypingUsers(prev => {
+                    if (is_typing) {
+                        // Add user to typing list if not already there
+                        return prev.includes(user_name) ? prev : [...prev, user_name]
+                    } else {
+                        // Remove user from typing list
+                        return prev.filter(name => name !== user_name)
+                    }
+                })
+            })
+            .subscribe()
+
         // Cleanup subscriptions
         return () => {
             supabase.removeChannel(messagesSubscription)
             supabase.removeChannel(participantsSubscription)
+            supabase.removeChannel(typingSubscription)
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current)
+            }
         }
     }, [roomId])
 
@@ -212,8 +240,21 @@ export default function ChatRoom({ params }: ChatPageProps) {
 
             if (messageError) throw messageError
 
-            // Clear input
+            // Clear input and stop typing indicator
             setNewMessage('')
+            if (isTyping) {
+                setIsTyping(false)
+                supabase.channel(`typing:${roomId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'typing',
+                        payload: {
+                            user_id: user.id,
+                            user_name: user.user_metadata?.name || user.email?.split('@')[0],
+                            is_typing: false
+                        }
+                    })
+            }
 
             // Get AI response
             const response = await fetch('/api/chat', {
@@ -262,6 +303,52 @@ export default function ChatRoom({ params }: ChatPageProps) {
         const link = `${window.location.origin}/room/${roomId}`
         navigator.clipboard.writeText(link)
         alert('Room link copied to clipboard!')
+    }
+
+    // Handle typing indicator
+    const handleTyping = (value: string) => {
+        setNewMessage(value)
+
+        if (!user) return
+
+        // If user starts typing and wasn't already typing
+        if (value.length > 0 && !isTyping) {
+            setIsTyping(true)
+            // Broadcast that user is typing
+            supabase.channel(`typing:${roomId}`)
+                .send({
+                    type: 'broadcast',
+                    event: 'typing',
+                    payload: {
+                        user_id: user.id,
+                        user_name: user.user_metadata?.name || user.email?.split('@')[0],
+                        is_typing: true
+                    }
+                })
+        }
+
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+        }
+
+        // Set new timeout to stop typing indicator
+        typingTimeoutRef.current = setTimeout(() => {
+            if (isTyping) {
+                setIsTyping(false)
+                // Broadcast that user stopped typing
+                supabase.channel(`typing:${roomId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'typing',
+                        payload: {
+                            user_id: user.id,
+                            user_name: user.user_metadata?.name || user.email?.split('@')[0],
+                            is_typing: false
+                        }
+                    })
+            }
+        }, 1000) // Stop typing indicator after 1 second of no typing
     }
 
     if (loading) {
@@ -323,17 +410,29 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 >
                                     <div
                                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.role === 'user'
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'bg-white border text-gray-900'
+                                                ? message.user_id === user?.id
+                                                    ? 'bg-indigo-600 text-white' // Your messages - indigo
+                                                    : 'bg-emerald-600 text-white' // Other users - emerald/green
+                                                : 'bg-white border text-gray-900' // AI messages - white
                                             }`}
                                     >
                                         {message.role === 'user' && (
-                                            <p className="text-xs opacity-75 mb-1">
-                                                {message.user_id === user?.id ? 'You' : (message.profiles?.name || message.profiles?.email?.split('@')[0] || 'Anonymous')}
-                                            </p>
+                                            <div className="flex justify-between items-center mb-1 gap-2">
+                                                <p className="text-xs opacity-75">
+                                                    {message.user_id === user?.id ? 'You' : (message.profiles?.name || message.profiles?.email?.split('@')[0] || 'Anonymous')}
+                                                </p>
+                                                <p className="text-xs opacity-50 shrink-0">
+                                                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
                                         )}
                                         {message.role === 'assistant' && (
-                                            <p className="text-xs text-gray-500 mb-1">AI</p>
+                                            <div className="flex justify-between items-center mb-1 gap-2">
+                                                <p className="text-xs text-gray-500">AI</p>
+                                                <p className="text-xs text-gray-400 shrink-0">
+                                                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
                                         )}
                                         <p className="whitespace-pre-wrap">{message.content}</p>
                                     </div>
@@ -345,11 +444,21 @@ export default function ChatRoom({ params }: ChatPageProps) {
 
                     {/* Message Input */}
                     <div className="border-t bg-white p-4">
+                        {/* Typing Indicator */}
+                        {typingUsers.length > 0 && (
+                            <div className="mb-2 text-sm text-gray-500 italic">
+                                {typingUsers.length === 1
+                                    ? `${typingUsers[0]} is typing...`
+                                    : `${typingUsers.slice(0, -1).join(', ')} and ${typingUsers[typingUsers.length - 1]} are typing...`
+                                }
+                            </div>
+                        )}
+
                         <form onSubmit={sendMessage} className="flex space-x-2">
                             <input
                                 type="text"
                                 value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
+                                onChange={(e) => handleTyping(e.target.value)}
                                 placeholder="Ask the AI anything..."
                                 disabled={sending}
                                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
