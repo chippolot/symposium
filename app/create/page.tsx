@@ -67,8 +67,8 @@ export default function CreateRoom() {
             // Redirect to room
             router.push(`/room/${room.id}`)
         } catch (error) {
-            console.error('Error creating room:', error)
-            alert('Error creating room. Please try again.')
+            console.error('Full error details:', error)
+            alert(`Error: ${JSON.stringify(error, null, 2)}`)
         } finally {
             setLoading(false)
         }
