@@ -71,7 +71,9 @@ export default function RoomCard({ room, currentUserId }: RoomCardProps) {
                                 {room.name}
                             </h3>
                             {isHost && (
-                                <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" title="You're the host" />
+                                <div title="You're the host">
+                                    <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                                </div>
                             )}
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-sm text-gray-500">
