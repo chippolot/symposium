@@ -100,24 +100,24 @@ export default function Home() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 flex flex-col">
             {/* Header */}
-            <header className="bg-white shadow-sm border-b">
+            <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-amber-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center space-x-3">
-                            <MessageCircle className="h-8 w-8 text-indigo-600" />
-                            <h1 className="text-2xl font-bold text-gray-900">Symposium</h1>
+                            <MessageCircle className="h-8 w-8 text-amber-700" />
+                            <h1 className="text-2xl font-bold text-amber-900">Symposium</h1>
                         </div>
 
                         {user ? (
                             <div className="flex items-center space-x-4">
-                                <span className="text-sm text-gray-600">
+                                <span className="text-sm text-amber-700">
                                     Welcome, {user.user_metadata?.name || user.email}
                                 </span>
                                 <button
                                     onClick={signOut}
-                                    className="text-sm text-gray-500 hover:text-gray-700"
+                                    className="text-sm text-amber-600 hover:text-amber-800 transition-colors"
                                 >
                                     Sign Out
                                 </button>
@@ -125,7 +125,7 @@ export default function Home() {
                         ) : (
                             <button
                                 onClick={signInWithGoogle}
-                                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                                className="bg-amber-700 text-white px-4 py-2 rounded-xl hover:bg-amber-800 transition-colors shadow-md"
                             >
                                 Sign In
                             </button>
@@ -139,7 +139,7 @@ export default function Home() {
                 {/* Auth Error Display */}
                 {authError && (
                     <div className="mb-6">
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm">
                             <div className="flex">
                                 <div className="flex-shrink-0">
                                     <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -169,47 +169,47 @@ export default function Home() {
                     // Landing Page
                     <div className="text-center">
                         <div className="mb-8">
-                            <MessageCircle className="h-20 w-20 text-indigo-600 mx-auto mb-6" />
-                            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                            <MessageCircle className="h-20 w-20 text-amber-700 mx-auto mb-6" />
+                            <h2 className="text-4xl font-bold text-amber-900 mb-4">
                                 Collaborative AI Conversations
                             </h2>
-                            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                                Bring your team together for philosophical discussions with AI.
-                                Multiple people, one conversation, endless possibilities.
+                            <p className="text-xl text-amber-800 max-w-2xl mx-auto font-medium">
+                                Bring your community together for thoughtful discussions with AI.
+                                Multiple minds, one conversation, infinite wisdom.
                             </p>
                         </div>
 
                         <div className="grid md:grid-cols-3 gap-8 mb-12">
-                            <div className="bg-white p-6 rounded-xl shadow-sm">
-                                <Users className="h-8 w-8 text-indigo-600 mb-4" />
-                                <h3 className="font-semibold text-gray-900 mb-2">Real-time Collaboration</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Multiple people can participate in the same AI chat simultaneously
+                            <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-amber-100">
+                                <Users className="h-8 w-8 text-amber-700 mb-4" />
+                                <h3 className="font-semibold text-amber-900 mb-2">Collective Inquiry</h3>
+                                <p className="text-amber-700 text-sm">
+                                    Multiple thinkers can explore ideas together in the same conversation
                                 </p>
                             </div>
 
-                            <div className="bg-white p-6 rounded-xl shadow-sm">
-                                <MessageCircle className="h-8 w-8 text-indigo-600 mb-4" />
-                                <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Discussions</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Engage with advanced AI models like GPT-4 and Claude
+                            <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-amber-100">
+                                <MessageCircle className="h-8 w-8 text-amber-700 mb-4" />
+                                <h3 className="font-semibold text-amber-900 mb-2">Socratic Dialogue</h3>
+                                <p className="text-amber-700 text-sm">
+                                    Engage with advanced AI in the spirit of philosophical inquiry
                                 </p>
                             </div>
 
-                            <div className="bg-white p-6 rounded-xl shadow-sm">
-                                <Plus className="h-8 w-8 text-indigo-600 mb-4" />
-                                <h3 className="font-semibold text-gray-900 mb-2">Easy Setup</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Create a room, share the link, start collaborating
+                            <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-amber-100">
+                                <Plus className="h-8 w-8 text-amber-700 mb-4" />
+                                <h3 className="font-semibold text-amber-900 mb-2">Simple Beginning</h3>
+                                <p className="text-amber-700 text-sm">
+                                    Create a space, invite fellow seekers, begin the conversation
                                 </p>
                             </div>
                         </div>
 
                         <button
                             onClick={signInWithGoogle}
-                            className="bg-indigo-600 text-white px-8 py-3 rounded-lg text-lg hover:bg-indigo-700 transition-colors"
+                            className="bg-amber-700 text-white px-8 py-3 rounded-2xl text-lg hover:bg-amber-800 transition-colors shadow-lg font-medium"
                         >
-                            Get Started - Sign In with Google
+                            Begin Your Journey - Sign In
                         </button>
                     </div>
                 ) : (
@@ -218,11 +218,11 @@ export default function Home() {
                         {/* Dashboard Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
                             <div>
-                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Symposiums</h2>
-                                <p className="text-gray-600">
+                                <h2 className="text-3xl font-bold text-amber-900 mb-2">Your Symposiums</h2>
+                                <p className="text-amber-700">
                                     {rooms.length > 0
                                         ? `You've participated in ${rooms.length} conversation${rooms.length !== 1 ? 's' : ''}`
-                                        : 'Start your first collaborative AI conversation'
+                                        : 'Begin your first collaborative inquiry'
                                     }
                                 </p>
                             </div>
@@ -231,7 +231,7 @@ export default function Home() {
                                 <button
                                     onClick={refreshRooms}
                                     disabled={roomsLoading}
-                                    className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors"
+                                    className="flex items-center space-x-2 px-4 py-2 text-amber-700 hover:text-amber-900 hover:bg-white/50 rounded-xl transition-colors"
                                 >
                                     <RefreshCw className={`h-4 w-4 ${roomsLoading ? 'animate-spin' : ''}`} />
                                     <span>Refresh</span>
@@ -239,10 +239,10 @@ export default function Home() {
 
                                 <Link
                                     href="/create"
-                                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                                    className="bg-amber-700 text-white px-6 py-2 rounded-xl hover:bg-amber-800 transition-colors flex items-center space-x-2 shadow-md"
                                 >
                                     <Plus className="h-5 w-5" />
-                                    <span>New Room</span>
+                                    <span>New Symposium</span>
                                 </Link>
                             </div>
                         </div>
@@ -250,10 +250,10 @@ export default function Home() {
                         {/* Rooms Grid */}
                         {roomsLoading ? (
                             <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700"></div>
                             </div>
                         ) : roomsError ? (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center shadow-sm">
                                 <p className="text-red-600 mb-4">{roomsError}</p>
                                 <button
                                     onClick={refreshRooms}
@@ -264,19 +264,19 @@ export default function Home() {
                             </div>
                         ) : rooms.length === 0 ? (
                             // Empty State
-                            <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
-                                <MessageCircle className="h-12 sm:h-16 w-12 sm:w-16 text-gray-400 mx-auto mb-4 sm:mb-6" />
-                                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-3">No conversations yet</h3>
-                                <p className="text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base">
-                                    Create your first symposium to start collaborating with AI.
-                                    Invite friends, ask questions, and explore ideas together.
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg p-8 sm:p-12 text-center border border-amber-100">
+                                <MessageCircle className="h-12 sm:h-16 w-12 sm:w-16 text-amber-600 mx-auto mb-4 sm:mb-6" />
+                                <h3 className="text-lg sm:text-xl font-semibold text-amber-900 mb-2 sm:mb-3">No conversations yet</h3>
+                                <p className="text-amber-700 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base">
+                                    Create your first symposium to begin exploring ideas with AI.
+                                    Invite fellow thinkers, pose questions, and discover wisdom together.
                                 </p>
                                 <Link
                                     href="/create"
-                                    className="bg-indigo-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center space-x-2 text-sm sm:text-base"
+                                    className="bg-amber-700 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl hover:bg-amber-800 transition-colors inline-flex items-center space-x-2 text-sm sm:text-base shadow-md"
                                 >
                                     <Plus className="h-4 sm:h-5 w-4 sm:w-5" />
-                                    <span>Create Your First Room</span>
+                                    <span>Create Your First Symposium</span>
                                 </Link>
                             </div>
                         ) : (
@@ -296,9 +296,9 @@ export default function Home() {
             </main>
 
             {/* Birthday Footer */}
-            <footer className="bg-white border-t py-6 mt-auto">
+            <footer className="bg-white/60 backdrop-blur-sm border-t border-amber-100 py-6 mt-auto">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-amber-700 text-sm font-medium">
                         🎉 Happy Birthday Dad! Love, Ben ❤️
                     </p>
                 </div>
