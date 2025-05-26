@@ -230,9 +230,11 @@ export default function Home() {
                             <div>
                                 <h2 className="text-3xl font-bold text-amber-900 mb-2">Your Symposiums</h2>
                                 <p className="text-amber-700">
-                                    {rooms.length > 0
-                                        ? `You've participated in ${rooms.length} conversation${rooms.length !== 1 ? 's' : ''}`
-                                        : 'Begin your first collaborative inquiry'
+                                    {roomsLoading
+                                        ? 'Loading your conversations...'
+                                        : rooms.length > 0
+                                            ? `You've participated in ${rooms.length} conversation${rooms.length !== 1 ? 's' : ''}`
+                                            : 'Begin your first collaborative inquiry'
                                     }
                                 </p>
                             </div>
@@ -259,8 +261,11 @@ export default function Home() {
 
                         {/* Rooms Grid */}
                         {roomsLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700"></div>
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg border border-amber-100 p-8 sm:p-12">
+                                <div className="flex flex-col items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700 mb-4"></div>
+                                    <p className="text-amber-700 text-sm">Loading your symposiums...</p>
+                                </div>
                             </div>
                         ) : roomsError ? (
                             <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center shadow-sm">

@@ -109,7 +109,8 @@ export default function RoomCard({ room, currentUserId, onRoomDeleted }: RoomCar
             setShowDeleteConfirm(false)
         } catch (error) {
             console.error('Error deleting room:', error)
-            alert(`Failed to delete room: ${error?.message || 'Unknown error'}`)
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            alert(`Failed to delete room: ${errorMessage}`)
         } finally {
             setIsDeleting(false)
         }

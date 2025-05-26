@@ -14,12 +14,13 @@ interface RoomWithDetails extends Room {
 
 export function useRooms(userId?: string) {
     const [rooms, setRooms] = useState<RoomWithDetails[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false) // Start with false
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!userId) {
             setLoading(false)
+            setRooms([]) // Clear rooms when no user
             return
         }
 
@@ -30,6 +31,7 @@ export function useRooms(userId?: string) {
         if (!userId) return
 
         try {
+            setLoading(true) // Set loading to true when starting
             setError(null)
 
             // Get rooms where user is a participant
@@ -101,6 +103,7 @@ export function useRooms(userId?: string) {
 
     const refreshRooms = () => {
         if (userId) {
+            setLoading(true) // Set loading when refreshing
             loadRooms()
         }
     }
