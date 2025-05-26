@@ -260,7 +260,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                 body: JSON.stringify({
                     roomId,
                     message: newMessage.trim(),
-                    aiModel: room?.ai_model || 'gpt-4'
+                    aiModel: room?.ai_model || 'gpt-4.1-mini'
                 }),
             })
 

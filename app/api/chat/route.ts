@@ -91,9 +91,9 @@ Please engage in this collaborative discussion while staying true to this person
 
         // Get AI response
         const completion = await openai.chat.completions.create({
-            model: aiModel === 'gpt-3.5-turbo' ? 'gpt-3.5-turbo' : 'gpt-4',
+            model: aiModel === 'gpt-4.1-mini' ? 'gpt-4.1-mini' : aiModel === 'o4-mini' ? 'o4-mini' : 'gpt-4.1',
             messages: allMessages,
-            max_tokens: 500,
+            max_tokens: aiModel === 'o4-mini' ? 32768 : 32768, // o4-mini supports up to 100k, but keeping reasonable for chat
             temperature: 0.7,
         })
 
@@ -105,17 +105,21 @@ Please engage in this collaborative discussion while staying true to this person
             )
         }
 
-        // Calculate cost (rough estimate)
+        // Calculate cost with updated pricing (per 1M tokens)
         const inputTokens = completion.usage?.prompt_tokens || 0
         const outputTokens = completion.usage?.completion_tokens || 0
 
-        // GPT-4 pricing: $0.03/1k input tokens, $0.06/1k output tokens
-        // GPT-3.5 pricing: $0.0015/1k input tokens, $0.002/1k output tokens
+        // Convert to cost in cents (dividing by 1M tokens and multiplying by 100 for cents)
         let costCents = 0
-        if (aiModel === 'gpt-4') {
-            costCents = Math.round((inputTokens * 0.03 + outputTokens * 0.06) / 10)
-        } else {
-            costCents = Math.round((inputTokens * 0.0015 + outputTokens * 0.002) / 10)
+        if (aiModel === 'gpt-4.1') {
+            // GPT-4.1: $2/1M input, $8/1M output
+            costCents = Math.round((inputTokens * 2 + outputTokens * 8) / 10000)
+        } else if (aiModel === 'gpt-4.1-mini') {
+            // GPT-4.1 Mini: $0.4/1M input, $1.6/1M output
+            costCents = Math.round((inputTokens * 0.4 + outputTokens * 1.6) / 10000)
+        } else if (aiModel === 'o4-mini') {
+            // o4-mini: $1.1/1M input, $4.4/1M output
+            costCents = Math.round((inputTokens * 1.1 + outputTokens * 4.4) / 10000)
         }
 
         return NextResponse.json({

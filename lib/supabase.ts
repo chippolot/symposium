@@ -21,7 +21,7 @@ export interface Room {
     name: string
     host_user_id: string
     payment_model: 'host_pays' | 'shared_pool' | 'per_message'
-    ai_model: 'gpt-4' | 'gpt-3.5-turbo' | 'claude-3'
+    ai_model: 'gpt-4.1' | 'gpt-4.1-mini' | 'o4-mini'
     is_active: boolean
     max_participants: number
     persona_type: 'none' | 'preset' | 'custom'

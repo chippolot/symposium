@@ -78,10 +78,15 @@ export default function Home() {
     }, [])
 
     const signInWithGoogle = async () => {
+        // Determine the correct redirect URL based on environment
+        const redirectTo = process.env.NODE_ENV === 'development'
+            ? 'http://localhost:3000/auth/callback'
+            : `${window.location.origin}/auth/callback`
+
         await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`
+                redirectTo
             }
         })
     }
@@ -89,6 +94,11 @@ export default function Home() {
     const signOut = async () => {
         await supabase.auth.signOut()
         setUser(null)
+    }
+
+    const handleRoomDeleted = (roomId: string) => {
+        // Refresh the rooms list after deletion
+        refreshRooms()
     }
 
     if (loading) {
@@ -287,6 +297,7 @@ export default function Home() {
                                         key={room.id}
                                         room={room}
                                         currentUserId={user.id}
+                                        onRoomDeleted={handleRoomDeleted}
                                     />
                                 ))}
                             </div>

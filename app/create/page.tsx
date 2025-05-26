@@ -13,7 +13,7 @@ export default function CreateRoom() {
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         name: '',
-        ai_model: 'gpt-4',
+        ai_model: 'gpt-4.1-mini',
         payment_model: 'host_pays',
         max_participants: 5
     })
@@ -149,9 +149,9 @@ export default function CreateRoom() {
                                 onChange={(e) => setFormData({ ...formData, ai_model: e.target.value })}
                                 className="w-full px-4 py-2 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                             >
-                                <option value="gpt-4">GPT-4 (Most capable, ~$0.03/1k tokens)</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fast & affordable, ~$0.002/1k tokens)</option>
-                                <option value="claude-3">Claude 3 (Coming soon)</option>
+                                <option value="gpt-4.1-mini">GPT-4.1 Mini (Balanced intelligence, speed & cost - $0.4/$1.6 per 1M tokens)</option>
+                                <option value="gpt-4.1">GPT-4.1 (Flagship model for complex tasks - $2/$8 per 1M tokens)</option>
+                                <option value="o4-mini">o4-mini (Fast reasoning optimized for coding & visual tasks - $1.1/$4.4 per 1M tokens)</option>
                             </select>
                         </div>
 
