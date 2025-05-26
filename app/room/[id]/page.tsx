@@ -429,7 +429,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                         )}
                                         {message.role === 'assistant' && (
                                             <div className="flex justify-between items-center mb-1 gap-2">
-                                                <p className="text-xs text-gray-500">AI</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {room?.persona_name || 'AI'}
+                                                </p>
                                                 <p className="text-xs text-gray-400 shrink-0">
                                                     {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </p>

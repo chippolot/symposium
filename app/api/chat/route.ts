@@ -17,6 +17,20 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Get room details including persona information
+        const { data: room, error: roomError } = await supabase
+            .from('rooms')
+            .select('*')
+            .eq('id', roomId)
+            .single()
+
+        if (roomError || !room) {
+            return NextResponse.json(
+                { error: 'Room not found' },
+                { status: 404 }
+            )
+        }
+
         // Get conversation history from the room
         const { data: messages, error: messagesError } = await supabase
             .from('messages')
@@ -39,10 +53,28 @@ export async function POST(request: NextRequest) {
             content: msg.content
         })) || []
 
-        // Add system message for context
-        const systemMessage = {
+        // Determine system message based on persona
+        let systemMessage = {
             role: 'system' as const,
             content: 'You are a helpful AI assistant participating in a collaborative discussion. Multiple people may be asking questions and discussing topics together. Be concise, helpful, and engaging.'
+        }
+
+        if (room.persona_type === 'preset' && room.persona_name) {
+            // Get the preset persona system prompt
+            const { data: persona } = await supabase
+                .from('preset_personas')
+                .select('system_prompt')
+                .eq('name', room.persona_name)
+                .single()
+
+            if (persona) {
+                systemMessage.content = persona.system_prompt
+            }
+        } else if (room.persona_type === 'custom' && room.persona_description) {
+            // Use custom persona description as system prompt
+            systemMessage.content = `You are ${room.persona_name || 'a custom persona'}. ${room.persona_description}
+
+Please engage in this collaborative discussion while staying true to this persona. Multiple people may be participating in the conversation, so be aware that different users may be asking questions or making comments.`
         }
 
         // Add the new user message
@@ -89,7 +121,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             content: aiResponse,
             cost_cents: costCents,
-            usage: completion.usage
+            usage: completion.usage,
+            persona_name: room.persona_name // Include persona name for display
         })
 
     } catch (error) {

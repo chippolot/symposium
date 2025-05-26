@@ -24,8 +24,19 @@ export interface Room {
     ai_model: 'gpt-4' | 'gpt-3.5-turbo' | 'claude-3'
     is_active: boolean
     max_participants: number
+    persona_type: 'none' | 'preset' | 'custom'
+    persona_name?: string
+    persona_description?: string
     created_at: string
     updated_at: string
+}
+
+export interface PresetPersona {
+    id: string
+    name: string
+    description: string
+    system_prompt: string
+    created_at: string
 }
 
 export interface Participant {
