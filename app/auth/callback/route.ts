@@ -14,6 +14,13 @@ export async function GET(request: NextRequest) {
         await supabase.auth.exchangeCodeForSession(code)
     }
 
-    // Always redirect to home - let client handle auth check
+    // Check if there's a pending room ID in the URL (we'll pass it via query param)
+    const pendingRoomId = requestUrl.searchParams.get('roomId')
+
+    if (pendingRoomId) {
+        return NextResponse.redirect(`${requestUrl.origin}/room/${pendingRoomId}`)
+    }
+
+    // Default redirect to home
     return NextResponse.redirect(requestUrl.origin)
 }

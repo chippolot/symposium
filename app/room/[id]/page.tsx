@@ -168,6 +168,30 @@ export default function ChatRoom({ params }: ChatPageProps) {
         }
     }, [roomId])
 
+    // Handle unauthenticated users - store room ID and redirect to OAuth
+    useEffect(() => {
+        const handleUnauthenticatedUser = async () => {
+            if (authLoading) return
+
+            if (!user && !authLoading) {
+                // Redirect to OAuth with room ID as query parameter
+                const redirectTo = process.env.NODE_ENV === 'development'
+                    ? `http://localhost:3000/auth/callback?roomId=${roomId}`
+                    : `${window.location.origin}/auth/callback?roomId=${roomId}`
+
+                await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo
+                    }
+                })
+                return
+            }
+        }
+
+        handleUnauthenticatedUser()
+    }, [user, authLoading, roomId])
+
     // Load messages
     const loadMessages = async () => {
         const { data, error } = await supabase
@@ -375,8 +399,8 @@ export default function ChatRoom({ params }: ChatPageProps) {
                         <button
                             onClick={() => setShowParticipants(!showParticipants)}
                             className={`p-2 rounded-lg transition-colors ${showParticipants
-                                    ? 'bg-indigo-100 text-indigo-600'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                ? 'bg-indigo-100 text-indigo-600'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                                 }`}
                         >
                             <Users className="h-5 w-5" />
@@ -411,10 +435,10 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 >
                                     <div
                                         className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${message.role === 'user'
-                                                ? message.user_id === user?.id
-                                                    ? 'bg-indigo-600 text-white' // Your messages - indigo
-                                                    : 'bg-emerald-600 text-white' // Other users - emerald/green
-                                                : 'bg-white border text-gray-900' // AI messages - white
+                                            ? message.user_id === user?.id
+                                                ? 'bg-indigo-600 text-white' // Your messages - indigo
+                                                : 'bg-emerald-600 text-white' // Other users - emerald/green
+                                            : 'bg-white border text-gray-900' // AI messages - white
                                             }`}
                                     >
                                         {message.role === 'user' && (
