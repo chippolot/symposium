@@ -482,9 +482,9 @@ Let the symposium begin.`
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col h-[100dvh]">
             {/* Mobile-Optimized Header */}
-            <header className="bg-white shadow-sm border-b px-4 py-3 sticky top-0 z-10">
+            <header className="bg-white shadow-sm border-b px-4 py-3 sticky top-0 z-10 flex-none">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                         <Link href="/" className="text-gray-600 hover:text-gray-900 flex-shrink-0">
@@ -518,12 +518,11 @@ Let the symposium begin.`
                 </div>
             </header>
 
-            <div className="flex-1 flex relative">
+            <div className="flex-1 flex relative min-h-0">
                 {/* Main Chat Area */}
-                <div className={`flex-1 flex flex-col transition-all duration-300 ${showParticipants ? 'lg:mr-64' : ''
-                    }`}>
+                <div className={`flex-1 flex flex-col transition-all duration-300 ${showParticipants ? 'lg:mr-64' : ''}`}>
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0">
                         {messages.length === 0 ? (
                             <div className="text-center text-gray-500 mt-8 px-4">
                                 <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -587,7 +586,7 @@ Let the symposium begin.`
                     </div>
 
                     {/* Mobile-Optimized Message Input */}
-                    <div className="border-t bg-white p-3 sm:p-4 safe-area-bottom">
+                    <div className="border-t bg-white p-3 sm:p-4 flex-none">
                         {/* Typing Indicator */}
                         {typingUsers.length > 0 && (
                             <div className="mb-2 px-1">
@@ -635,7 +634,7 @@ Let the symposium begin.`
                                     type="button"
                                     onClick={(e) => sendMessage(e, true)}
                                     disabled={sending || !newMessage.trim()}
-                                    className="px-3 sm:px-4 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors group"
+                                    className="px-3 sm:px-4 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
                                     title="Send message and get AI response"
                                 >
                                     {sending ? (
@@ -643,7 +642,7 @@ Let the symposium begin.`
                                     ) : (
                                         <div className="flex items-center">
                                             <Send className="h-5 w-5" />
-                                            <Sparkles className="h-4 w-4 ml-1 group-hover:animate-pulse" />
+                                            <Sparkles className="h-4 w-4 ml-1" />
                                         </div>
                                     )}
                                 </button>
