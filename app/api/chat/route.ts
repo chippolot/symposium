@@ -91,9 +91,11 @@ export async function POST(request: NextRequest) {
         }) || []
 
         // Determine system message based on persona
+        const CHARACTER_LIMIT_INSTRUCTION = '\n\nIMPORTANT: Always limit your responses to 512 characters maximum. This is a hard requirement for maintaining concise and focused dialogue.'
+
         let systemMessage = {
             role: 'system' as const,
-            content: 'You are a helpful AI assistant participating in a collaborative discussion. Multiple people may be asking questions and discussing topics together. Be concise, helpful, and engaging.'
+            content: 'You are a helpful AI assistant participating in a collaborative discussion. Multiple people may be asking questions and discussing topics together. Be concise, helpful, and engaging.' + CHARACTER_LIMIT_INSTRUCTION
         }
 
         if (room.persona_type === 'preset' && room.persona_name) {
@@ -105,13 +107,13 @@ export async function POST(request: NextRequest) {
                 .single()
 
             if (persona) {
-                systemMessage.content = persona.system_prompt
+                systemMessage.content = persona.system_prompt + CHARACTER_LIMIT_INSTRUCTION
             }
         } else if (room.persona_type === 'custom' && room.persona_description) {
             // Use custom persona description as system prompt
             systemMessage.content = `You are ${room.persona_name || 'a custom persona'}. ${room.persona_description}
 
-Please engage in this collaborative discussion while staying true to this persona. Multiple people may be participating in the conversation, so be aware that different users may be asking questions or making comments.`
+Please engage in this collaborative discussion while staying true to this persona. Multiple people may be participating in the conversation, so be aware that different users may be asking questions or making comments.${CHARACTER_LIMIT_INSTRUCTION}`
         }
 
         // Add the new user message

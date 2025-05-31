@@ -115,19 +115,39 @@ Let the symposium begin.`
                         .select()
                         .single()
 
-                    // Then add AI introduction
-                    const introMessage = room?.persona_name
-                        ? `Hello! I'm ${room?.persona_name}. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!`
-                        : "Hello! I'm your AI assistant. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!"
+                    // Get AI to generate its own introduction
+                    const introPrompt = `@AI Please introduce yourself as ${room?.persona_name || 'an AI companion'} for this symposium. ${room?.persona_description || ''}`
 
+                    // Get AI response for introduction
+                    const introResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            roomId,
+                            message: introPrompt,
+                            aiModel: room?.ai_model || 'gpt-4.1-mini',
+                            isIntroduction: true // Flag to indicate this is the introduction message
+                        }),
+                    })
+
+                    if (!introResponse.ok) {
+                        throw new Error('Failed to get AI introduction')
+                    }
+
+                    const aiIntroResponse = await introResponse.json()
+
+                    // Add AI introduction message
                     const { data: aiMessage } = await supabase
                         .from('messages')
                         .insert([
                             {
                                 room_id: roomId,
                                 user_id: null,
-                                content: introMessage,
-                                role: 'assistant'
+                                content: aiIntroResponse.content,
+                                role: 'assistant',
+                                cost_cents: aiIntroResponse.cost_cents || 0
                             }
                         ])
                         .select()
