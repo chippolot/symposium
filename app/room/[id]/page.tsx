@@ -24,6 +24,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
     const [showParticipants, setShowParticipants] = useState(false)
     const [typingUsers, setTypingUsers] = useState<string[]>([])
     const [isTyping, setIsTyping] = useState(false)
+    const [subscriptionStatus, setSubscriptionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const roomId = params.id
@@ -43,6 +44,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
             if (!user) return
 
             try {
+                setSubscriptionStatus('connecting')
                 // Get room details
                 const { data: roomData, error: roomError } = await supabase
                     .from('rooms')
@@ -95,9 +97,12 @@ export default function ChatRoom({ params }: ChatPageProps) {
                         ])
                 }
 
+                // Now that initial data is loaded, set up real-time subscriptions
+                setupSubscriptions()
                 setLoading(false)
             } catch (error) {
                 console.error('Error initializing room:', error)
+                setSubscriptionStatus('error')
                 router.push('/')
             }
         }
@@ -105,92 +110,118 @@ export default function ChatRoom({ params }: ChatPageProps) {
         initializeRoom()
     }, [roomId, router, user])
 
-    // Set up real-time subscriptions
-    useEffect(() => {
+    // Set up real-time subscriptions as a separate function
+    const setupSubscriptions = async () => {
         if (!roomId) return
 
-        // Subscribe to new messages
-        const messagesSubscription = supabase
-            .channel(`messages:${roomId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `room_id=eq.${roomId}`
-                },
-                async (payload) => {
-                    console.log('New message received:', payload.new)
-                    // Fetch the message with profile data
-                    const { data: messageWithProfile } = await supabase
-                        .from('messages')
-                        .select(`
-              *,
-              profiles (
-                name,
-                email
-              )
-            `)
-                        .eq('id', payload.new.id)
-                        .single()
+        try {
+            // Subscribe to new messages
+            const messagesSubscription = supabase
+                .channel(`messages:${roomId}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `room_id=eq.${roomId}`
+                    },
+                    async (payload) => {
+                        console.log('New message received:', payload.new)
+                        // Fetch the message with profile data
+                        const { data: messageWithProfile } = await supabase
+                            .from('messages')
+                            .select(`
+                                *,
+                                profiles (
+                                    name,
+                                    email
+                                )
+                            `)
+                            .eq('id', payload.new.id)
+                            .single()
 
-                    if (messageWithProfile) {
-                        setMessages(prev => [...prev, messageWithProfile])
+                        if (messageWithProfile) {
+                            setMessages(prev => [...prev, messageWithProfile])
+                        }
                     }
-                }
-            )
-            .subscribe()
+                )
 
-        // Subscribe to participant changes
-        const participantsSubscription = supabase
-            .channel(`participants:${roomId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'participants',
-                    filter: `room_id=eq.${roomId}`
-                },
-                () => {
-                    // Reload participants when someone joins/leaves
-                    loadParticipants()
-                }
-            )
-            .subscribe()
-
-        // Subscribe to typing indicators
-        const typingSubscription = supabase
-            .channel(`typing:${roomId}`)
-            .on('broadcast', { event: 'typing' }, (payload) => {
-                const { user_id, user_name, is_typing } = payload.payload
-
-                // Don't show typing indicator for current user
-                if (user_id === user?.id) return
-
-                setTypingUsers(prev => {
-                    if (is_typing) {
-                        // Add user to typing list if not already there
-                        return prev.includes(user_name) ? prev : [...prev, user_name]
-                    } else {
-                        // Remove user from typing list
-                        return prev.filter(name => name !== user_name)
+            // Subscribe to participant changes
+            const participantsSubscription = supabase
+                .channel(`participants:${roomId}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'participants',
+                        filter: `room_id=eq.${roomId}`
+                    },
+                    () => {
+                        loadParticipants()
                     }
+                )
+
+            // Subscribe to typing indicators
+            const typingSubscription = supabase
+                .channel(`typing:${roomId}`)
+                .on('broadcast', { event: 'typing' }, (payload) => {
+                    const { user_id, user_name, is_typing } = payload.payload
+
+                    if (user_id === user?.id) return
+
+                    setTypingUsers(prev => {
+                        if (is_typing) {
+                            return prev.includes(user_name) ? prev : [...prev, user_name]
+                        } else {
+                            return prev.filter(name => name !== user_name)
+                        }
+                    })
                 })
-            })
-            .subscribe()
 
-        // Cleanup subscriptions
-        return () => {
-            supabase.removeChannel(messagesSubscription)
-            supabase.removeChannel(participantsSubscription)
-            supabase.removeChannel(typingSubscription)
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current)
+            // Subscribe to all channels and handle connection status
+            await Promise.all([
+                messagesSubscription.subscribe(),
+                participantsSubscription.subscribe(),
+                typingSubscription.subscribe()
+            ])
+
+            setSubscriptionStatus('connected')
+
+            // Cleanup function remains the same
+            return () => {
+                supabase.removeChannel(messagesSubscription)
+                supabase.removeChannel(participantsSubscription)
+                supabase.removeChannel(typingSubscription)
+                if (typingTimeoutRef.current) {
+                    clearTimeout(typingTimeoutRef.current)
+                }
             }
+        } catch (error) {
+            console.error('Error setting up subscriptions:', error)
+            setSubscriptionStatus('error')
         }
-    }, [roomId])
+    }
+
+    // Add a visual indicator for subscription status
+    const renderConnectionStatus = () => {
+        if (subscriptionStatus === 'connecting') {
+            return (
+                <div className="fixed bottom-4 right-4 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm flex items-center">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-800 mr-2"></div>
+                    Connecting to real-time updates...
+                </div>
+            )
+        } else if (subscriptionStatus === 'error') {
+            return (
+                <div className="fixed bottom-4 right-4 bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm flex items-center cursor-pointer" onClick={setupSubscriptions}>
+                    ⚠️ Connection error. Click to retry.
+                </div>
+            )
+        }
+        return null
+    }
 
     // Handle unauthenticated users - store room ID and redirect to OAuth
     useEffect(() => {
@@ -623,6 +654,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     </>
                 )}
             </div>
+            {renderConnectionStatus()}
         </div>
     )
 }
