@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { supabase } from '@/lib/supabase'
 
+// Add type for the message with profile
+interface MessageWithProfile {
+    content: string
+    role: 'user' | 'assistant' | 'system'
+    profiles?: {
+        name: string | null
+        email: string | null
+    }
+}
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
 })
@@ -34,10 +44,17 @@ export async function POST(request: NextRequest) {
         // Get conversation history from the room
         const { data: messages, error: messagesError } = await supabase
             .from('messages')
-            .select('content, role')
+            .select(`
+                content, 
+                role,
+                profiles (
+                    name,
+                    email
+                )
+            `)
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
-            .limit(20) // Limit context to last 20 messages
+            .limit(20) as { data: MessageWithProfile[] | null, error: any } // Add type assertion
 
         if (messagesError) {
             console.error('Error fetching messages:', messagesError)
@@ -48,10 +65,17 @@ export async function POST(request: NextRequest) {
         }
 
         // Build conversation context
-        const conversationHistory = messages?.map(msg => ({
-            role: msg.role as 'user' | 'assistant' | 'system',
-            content: msg.content
-        })) || []
+        const conversationHistory = messages?.map(msg => {
+            let content = msg.content
+            if (msg.role === 'user') {
+                const userName = msg.profiles?.name || msg.profiles?.email?.split('@')[0] || 'Anonymous'
+                content = `[${userName}]: ${msg.content}`
+            }
+            return {
+                role: msg.role as 'user' | 'assistant' | 'system',
+                content
+            }
+        }) || []
 
         // Determine system message based on persona
         let systemMessage = {
