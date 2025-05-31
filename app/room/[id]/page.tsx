@@ -71,6 +71,30 @@ export default function ChatRoom({ params }: ChatPageProps) {
                 await loadMessages()
                 await loadParticipants()
 
+                // Check if this is a new room (no messages) and add AI introduction
+                const { data: existingMessages } = await supabase
+                    .from('messages')
+                    .select('id')
+                    .eq('room_id', roomId)
+                    .limit(1)
+
+                if (!existingMessages?.length) {
+                    const introMessage = room?.persona_name
+                        ? `Hello! I'm ${room?.persona_name}. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!`
+                        : "Hello! I'm your AI assistant. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!"
+
+                    await supabase
+                        .from('messages')
+                        .insert([
+                            {
+                                room_id: roomId,
+                                user_id: null,
+                                content: introMessage,
+                                role: 'assistant'
+                            }
+                        ])
+                }
+
                 setLoading(false)
             } catch (error) {
                 console.error('Error initializing room:', error)
@@ -275,7 +299,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     })
             }
 
-            // Get AI response
+            // Get AI response only if AI was mentioned
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -292,20 +316,22 @@ export default function ChatRoom({ params }: ChatPageProps) {
                 throw new Error('Failed to get AI response')
             }
 
-            // AI response will be added via real-time subscription
             const aiResponse = await response.json()
 
-            await supabase
-                .from('messages')
-                .insert([
-                    {
-                        room_id: roomId,
-                        user_id: null, // AI messages have no user_id
-                        content: aiResponse.content,
-                        role: 'assistant',
-                        cost_cents: aiResponse.cost_cents || 0
-                    }
-                ])
+            // Only create AI message if AI should respond
+            if (aiResponse.should_respond !== false && aiResponse.content) {
+                await supabase
+                    .from('messages')
+                    .insert([
+                        {
+                            room_id: roomId,
+                            user_id: null, // AI messages have no user_id
+                            content: aiResponse.content,
+                            role: 'assistant',
+                            cost_cents: aiResponse.cost_cents || 0
+                        }
+                    ])
+            }
 
             // No need to reload messages - real-time subscription will handle it!
 
@@ -497,7 +523,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 type="text"
                                 value={newMessage}
                                 onChange={(e) => handleTyping(e.target.value)}
-                                placeholder="Ask the AI anything..."
+                                placeholder="Chat with others or use @AI to get AI response..."
                                 disabled={sending}
                                 className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-base"
                             />

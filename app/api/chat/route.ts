@@ -41,6 +41,19 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Check if AI should respond (mentioned via @AI)
+        const shouldRespond = message.toLowerCase().includes('@ai')
+
+        if (!shouldRespond) {
+            return NextResponse.json({
+                content: null,
+                should_respond: false
+            })
+        }
+
+        // Remove the @AI mention from the message
+        const cleanMessage = message.replace(/@ai/gi, '').trim()
+
         // Get conversation history from the room
         const { data: messages, error: messagesError } = await supabase
             .from('messages')
@@ -104,7 +117,7 @@ Please engage in this collaborative discussion while staying true to this person
         // Add the new user message
         const newUserMessage = {
             role: 'user' as const,
-            content: message
+            content: cleanMessage
         }
 
         const allMessages = [
