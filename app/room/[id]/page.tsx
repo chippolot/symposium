@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { Room, Message, Participant } from '@/lib/supabase'
-import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 
 interface ChatPageProps {
@@ -261,7 +261,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
     }
 
     // Send message and get AI response
-    const sendMessage = async (e: React.FormEvent) => {
+    const sendMessage = async (e: React.FormEvent, forceAIResponse: boolean = false) => {
         e.preventDefault()
         if (!newMessage.trim() || sending || !user) return
 
@@ -299,7 +299,10 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     })
             }
 
-            // Get AI response only if AI was mentioned
+            // If forceAIResponse is true, prepend @AI to the message
+            const messageForAI = forceAIResponse ? `@AI ${newMessage.trim()}` : newMessage.trim()
+
+            // Get AI response
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -307,7 +310,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                 },
                 body: JSON.stringify({
                     roomId,
-                    message: newMessage.trim(),
+                    message: messageForAI,
                     aiModel: room?.ai_model || 'gpt-4.1-mini'
                 }),
             })
@@ -332,8 +335,6 @@ export default function ChatRoom({ params }: ChatPageProps) {
                         }
                     ])
             }
-
-            // No need to reload messages - real-time subscription will handle it!
 
         } catch (error) {
             console.error('Error sending message:', error)
@@ -518,7 +519,7 @@ export default function ChatRoom({ params }: ChatPageProps) {
                             </div>
                         )}
 
-                        <form onSubmit={sendMessage} className="flex space-x-2 sm:space-x-3">
+                        <form onSubmit={(e) => sendMessage(e, false)} className="flex space-x-2 sm:space-x-3">
                             <input
                                 type="text"
                                 value={newMessage}
@@ -527,17 +528,36 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 disabled={sending}
                                 className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-base"
                             />
-                            <button
-                                type="submit"
-                                disabled={sending || !newMessage.trim()}
-                                className="px-3 sm:px-4 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
-                            >
-                                {sending ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                ) : (
-                                    <Send className="h-5 w-5" />
-                                )}
-                            </button>
+                            <div className="flex space-x-2">
+                                <button
+                                    type="submit"
+                                    disabled={sending || !newMessage.trim()}
+                                    className="px-3 sm:px-4 py-2 sm:py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
+                                    title="Send message"
+                                >
+                                    {sending ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    ) : (
+                                        <Send className="h-5 w-5" />
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => sendMessage(e, true)}
+                                    disabled={sending || !newMessage.trim()}
+                                    className="px-3 sm:px-4 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors group"
+                                    title="Send message and get AI response"
+                                >
+                                    {sending ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    ) : (
+                                        <div className="flex items-center">
+                                            <Send className="h-5 w-5" />
+                                            <Sparkles className="h-4 w-4 ml-1 group-hover:animate-pulse" />
+                                        </div>
+                                    )}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
