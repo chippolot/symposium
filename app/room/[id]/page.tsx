@@ -7,6 +7,8 @@ import { useAuthGuard } from '@/lib/auth-guard'
 import { Room, Message, Participant } from '@/lib/supabase'
 import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle, Sparkles } from 'lucide-react'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 
 interface ChatPageProps {
     params: { id: string }
@@ -81,11 +83,44 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     .limit(1)
 
                 if (!existingMessages?.length) {
+                    // Add welcome message first
+                    const welcomeMessage = `✨ **Welcome to the Symposium!** ✨
+
+This space is designed for thoughtful dialogue between participants, with the optional involvement of an AI persona.
+
+**To speak with other participants:**
+Type your message normally in the input area at the bottom of the page. Clicking the send button will post a message without requesting a response from the AI. They will simply be displayed to all participants as part of the group conversation.
+
+**To invite an AI persona into the conversation:**
+Adding '@AI' or clicking the sparkling send button will direct your message at the AI and prompt a response.
+
+*Example:* \`@AI, what are the philosophical implications of artificial intelligence?\`
+
+Please be respectful and attentive in your interactions. The intention of this format is to allow genuine human conversation to flourish—with AI support only when intentionally invited.
+
+---
+
+Let the symposium begin.`
+
+                    const { data: systemMessage } = await supabase
+                        .from('messages')
+                        .insert([
+                            {
+                                room_id: roomId,
+                                user_id: null,
+                                content: welcomeMessage,
+                                role: 'system'
+                            }
+                        ])
+                        .select()
+                        .single()
+
+                    // Then add AI introduction
                     const introMessage = room?.persona_name
                         ? `Hello! I'm ${room?.persona_name}. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!`
                         : "Hello! I'm your AI assistant. I'll be participating in this conversation. Just mention me using @AI when you'd like my input!"
 
-                    await supabase
+                    const { data: aiMessage } = await supabase
                         .from('messages')
                         .insert([
                             {
@@ -95,6 +130,13 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                 role: 'assistant'
                             }
                         ])
+                        .select()
+                        .single()
+
+                    // Update messages state immediately with both new messages
+                    if (systemMessage && aiMessage) {
+                        setMessages([systemMessage, aiMessage])
+                    }
                 }
 
                 // Now that initial data is loaded, set up real-time subscriptions
@@ -128,21 +170,24 @@ export default function ChatRoom({ params }: ChatPageProps) {
                     },
                     async (payload) => {
                         console.log('New message received:', payload.new)
-                        // Fetch the message with profile data
-                        const { data: messageWithProfile } = await supabase
-                            .from('messages')
-                            .select(`
-                                *,
-                                profiles (
-                                    name,
-                                    email
-                                )
-                            `)
-                            .eq('id', payload.new.id)
-                            .single()
+                        // Only fetch and add message if we don't already have it
+                        if (!messages.some(msg => msg.id === payload.new.id)) {
+                            // Fetch the message with profile data
+                            const { data: messageWithProfile } = await supabase
+                                .from('messages')
+                                .select(`
+                                    *,
+                                    profiles (
+                                        name,
+                                        email
+                                    )
+                                `)
+                                .eq('id', payload.new.id)
+                                .single()
 
-                        if (messageWithProfile) {
-                            setMessages(prev => [...prev, messageWithProfile])
+                            if (messageWithProfile) {
+                                setMessages(prev => [...prev, messageWithProfile])
+                            }
                         }
                     }
                 )
@@ -496,7 +541,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                             ? message.user_id === user?.id
                                                 ? 'bg-indigo-600 text-white' // Your messages - indigo
                                                 : 'bg-emerald-600 text-white' // Other users - emerald/green
-                                            : 'bg-white border text-gray-900' // AI messages - white
+                                            : message.role === 'system'
+                                                ? 'bg-gray-100 text-gray-900' // System messages - light gray
+                                                : 'bg-white border text-gray-900' // AI messages - white
                                             }`}
                                     >
                                         {message.role === 'user' && (
@@ -519,7 +566,19 @@ export default function ChatRoom({ params }: ChatPageProps) {
                                                 </p>
                                             </div>
                                         )}
-                                        <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">{message.content}</p>
+                                        {message.role === 'system' ? (
+                                            <div className="prose prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-white [&_strong]:mt-6 [&_strong]:block [&_p:first-child]:text-center [&_p:first-child_strong]:inline-block [&_p:first-child]:!mt-0">
+                                                <ReactMarkdown
+                                                    components={{
+                                                        p: ({ node, ...props }) => <p className="whitespace-pre-wrap mb-4" {...props} />
+                                                    }}
+                                                >
+                                                    {message.content}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">{message.content}</p>
+                                        )}
                                     </div>
                                 </div>
                             ))
