@@ -26,6 +26,9 @@ export default function ChatRoom({ params }: ChatPageProps) {
     const [showParticipants, setShowParticipants] = useState(false)
     const [typingUsers, setTypingUsers] = useState<string[]>([])
     const [isTyping, setIsTyping] = useState(false)
+    const [aiResponding, setAiResponding] = useState(false)
+    const [aiRespondingRemote, setAiRespondingRemote] = useState(false)
+    const [aiPersonaName, setAiPersonaName] = useState('')
     const [subscriptionStatus, setSubscriptionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -92,9 +95,7 @@ This space is designed for thoughtful dialogue between participants, with the op
 Type your message normally in the input area at the bottom of the page. Clicking the send button will post a message without requesting a response from the AI. They will simply be displayed to all participants as part of the group conversation.
 
 **To invite an AI persona into the conversation:**
-Adding '@AI' or clicking the sparkling send button will direct your message at the AI and prompt a response.
-
-*Example:* \`@AI, what are the philosophical implications of artificial intelligence?\`
+Clicking the sparkling send button will direct your message at the AI and prompt a response.
 
 Please be respectful and attentive in your interactions. The intention of this format is to allow genuine human conversation to flourish—with AI support only when intentionally invited.
 
@@ -196,12 +197,12 @@ Let the symposium begin.`
                             const { data: messageWithProfile } = await supabase
                                 .from('messages')
                                 .select(`
-                                    *,
-                                    profiles (
-                                        name,
-                                        email
-                                    )
-                                `)
+                                *,
+                                profiles (
+                                    name,
+                                    email
+                                )
+                            `)
                                 .eq('id', payload.new.id)
                                 .single()
 
@@ -228,7 +229,7 @@ Let the symposium begin.`
                     }
                 )
 
-            // Subscribe to typing indicators
+            // Subscribe to typing indicators (modified to include AI typing)
             const typingSubscription = supabase
                 .channel(`typing:${roomId}`)
                 .on('broadcast', { event: 'typing' }, (payload) => {
@@ -244,6 +245,11 @@ Let the symposium begin.`
                         }
                     })
                 })
+                .on('broadcast', { event: 'ai_typing' }, (payload) => {
+                    const { ai_responding, persona_name } = payload.payload
+                    setAiRespondingRemote(ai_responding)
+                    setAiPersonaName(persona_name)
+                })
 
             // Subscribe to all channels and handle connection status
             await Promise.all([
@@ -254,7 +260,7 @@ Let the symposium begin.`
 
             setSubscriptionStatus('connected')
 
-            // Cleanup function remains the same
+            // Cleanup function
             return () => {
                 supabase.removeChannel(messagesSubscription)
                 supabase.removeChannel(participantsSubscription)
@@ -398,6 +404,23 @@ Let the symposium begin.`
             // If forceAIResponse is true, prepend @AI to the message
             const messageForAI = forceAIResponse ? `@AI ${newMessage.trim()}` : newMessage.trim()
 
+            // Check if AI should respond (either forced or message contains @AI)
+            const shouldRequestAI = forceAIResponse || newMessage.trim().includes('@AI')
+
+            // Only show AI typing indicator if we're actually requesting an AI response
+            if (shouldRequestAI) {
+                setAiResponding(true)
+                supabase.channel(`typing:${roomId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'ai_typing',
+                        payload: {
+                            ai_responding: true,
+                            persona_name: room?.persona_name || 'AI'
+                        }
+                    })
+            }
+
             // Get AI response
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -417,6 +440,20 @@ Let the symposium begin.`
 
             const aiResponse = await response.json()
 
+            // Hide AI typing indicator if it was shown
+            if (shouldRequestAI) {
+                setAiResponding(false)
+                supabase.channel(`typing:${roomId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'ai_typing',
+                        payload: {
+                            ai_responding: false,
+                            persona_name: room?.persona_name || 'AI'
+                        }
+                    })
+            }
+
             // Only create AI message if AI should respond
             if (aiResponse.should_respond !== false && aiResponse.content) {
                 await supabase
@@ -435,6 +472,21 @@ Let the symposium begin.`
         } catch (error) {
             console.error('Error sending message:', error)
             alert('Failed to send message. Please try again.')
+
+            // Make sure to hide AI typing indicator on error (only if it was shown)
+            const shouldRequestAI = forceAIResponse || newMessage.trim().includes('@AI')
+            if (shouldRequestAI) {
+                setAiResponding(false)
+                supabase.channel(`typing:${roomId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'ai_typing',
+                        payload: {
+                            ai_responding: false,
+                            persona_name: room?.persona_name || 'AI'
+                        }
+                    })
+            }
         } finally {
             setSending(false)
         }
@@ -608,7 +660,7 @@ Let the symposium begin.`
                     {/* Mobile-Optimized Message Input */}
                     <div className="border-t bg-white p-3 sm:p-4 flex-none">
                         {/* Typing Indicator */}
-                        {typingUsers.length > 0 && (
+                        {(typingUsers.length > 0 || aiResponding || aiRespondingRemote) && (
                             <div className="mb-2 px-1">
                                 <div className="bg-gray-100 rounded-full px-3 py-1 inline-block">
                                     <div className="flex items-center space-x-2">
@@ -618,10 +670,17 @@ Let the symposium begin.`
                                             <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                         </div>
                                         <span className="text-xs text-gray-500">
-                                            {typingUsers.length === 1
-                                                ? `${typingUsers[0]} is typing...`
-                                                : `${typingUsers.slice(0, -1).join(', ')} and ${typingUsers[typingUsers.length - 1]} are typing...`
-                                            }
+                                            {(aiResponding || aiRespondingRemote) && typingUsers.length === 0 && (
+                                                `${aiPersonaName || room?.persona_name || 'AI'} is responding...`
+                                            )}
+                                            {typingUsers.length > 0 && !(aiResponding || aiRespondingRemote) && (
+                                                typingUsers.length === 1
+                                                    ? `${typingUsers[0]} is typing...`
+                                                    : `${typingUsers.slice(0, -1).join(', ')} and ${typingUsers[typingUsers.length - 1]} are typing...`
+                                            )}
+                                            {(aiResponding || aiRespondingRemote) && typingUsers.length > 0 && (
+                                                `${typingUsers.join(', ')} ${typingUsers.length === 1 ? 'is' : 'are'} typing and ${aiPersonaName || room?.persona_name || 'AI'} is responding...`
+                                            )}
                                         </span>
                                     </div>
                                 </div>
@@ -633,7 +692,7 @@ Let the symposium begin.`
                                 type="text"
                                 value={newMessage}
                                 onChange={(e) => handleTyping(e.target.value)}
-                                placeholder="Chat with others or use @AI to get AI response..."
+                                placeholder="Chat with the group..."
                                 disabled={sending}
                                 className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-base"
                             />
