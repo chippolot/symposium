@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { Room, Message, Participant } from '@/lib/supabase'
-import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle, Sparkles } from 'lucide-react'
+import { ArrowLeft, Send, Users, Share2, Copy, MessageCircle, Sparkles, ArrowDown } from 'lucide-react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -30,18 +30,81 @@ export default function ChatRoom({ params }: ChatPageProps) {
     const [aiRespondingRemote, setAiRespondingRemote] = useState(false)
     const [aiPersonaName, setAiPersonaName] = useState('')
     const [subscriptionStatus, setSubscriptionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
+    const [isAtBottom, setIsAtBottom] = useState(true)
+    const [showScrollButton, setShowScrollButton] = useState(false)
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesContainerRef = useRef<HTMLDivElement>(null)
     const roomId = params.id
 
     // Auto-scroll to bottom when new messages arrive
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
+        messagesEndRef.current?.scrollIntoView({ behavior })
     }
 
+    // Check if user is scrolled to bottom
+    const checkScrollPosition = () => {
+        if (!messagesContainerRef.current) return
+
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
+        const isBottom = scrollHeight - scrollTop - clientHeight < 50 // Reduced threshold for more accurate detection
+
+        setIsAtBottom(isBottom)
+        setShowScrollButton(!isBottom)
+    }
+
+    // Handle scroll events
     useEffect(() => {
-        scrollToBottom()
+        const setupScrollListener = () => {
+            const container = messagesContainerRef.current
+
+            if (!container) {
+                setTimeout(setupScrollListener, 100)
+                return
+            }
+
+            const handleScroll = () => {
+                checkScrollPosition()
+            }
+
+            container.addEventListener('scroll', handleScroll, { passive: true })
+
+            // Initial check
+            checkScrollPosition()
+
+            return () => {
+                container.removeEventListener('scroll', handleScroll)
+            }
+        }
+
+        const cleanup = setupScrollListener()
+        return cleanup
+    }, [])
+
+    // Separate effect to check scroll position when messages change
+    useEffect(() => {
+        // Check scroll position after messages update
+        setTimeout(checkScrollPosition, 100)
     }, [messages])
+
+    // Auto-scroll to bottom when new messages arrive (only if user was already at bottom)
+    useEffect(() => {
+        if (isAtBottom && messages.length > 0) {
+            // Use a small delay to ensure DOM is updated
+            setTimeout(() => scrollToBottom(), 50)
+        }
+    }, [messages, isAtBottom])
+
+    // Scroll to bottom on initial load - improved timing
+    useEffect(() => {
+        if (messages.length > 0 && !loading) {
+            // Use longer delay for initial load to ensure all messages are rendered
+            setTimeout(() => {
+                scrollToBottom('auto')
+                setTimeout(checkScrollPosition, 200)
+            }, 200)
+        }
+    }, [messages.length > 0, loading])
 
     // Initialize room and user
     useEffect(() => {
@@ -594,7 +657,10 @@ Let the symposium begin.`
                 {/* Main Chat Area */}
                 <div className={`flex-1 flex flex-col transition-all duration-300 ${showParticipants ? 'lg:mr-64' : ''}`}>
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0">
+                    <div
+                        ref={messagesContainerRef}
+                        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0"
+                    >
                         {messages.length === 0 ? (
                             <div className="text-center text-gray-500 mt-8 px-4">
                                 <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -657,8 +723,21 @@ Let the symposium begin.`
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Mobile-Optimized Message Input */}
-                    <div className="border-t bg-white p-3 sm:p-4 flex-none">
+                    {/* Floating Scroll to Bottom Button */}
+                    {showScrollButton && (
+                        <div className="absolute bottom-24 sm:bottom-28 right-4 z-20">
+                            <button
+                                onClick={() => scrollToBottom()}
+                                className="bg-white border border-gray-300 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:bg-gray-50"
+                                title="Scroll to bottom"
+                            >
+                                <ArrowDown className="h-5 w-5 text-gray-600" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Mobile-Optimized Message Input - Now Sticky */}
+                    <div className="border-t bg-white p-3 sm:p-4 flex-none sticky bottom-0 z-10">
                         {/* Typing Indicator */}
                         {(typingUsers.length > 0 || aiResponding || aiRespondingRemote) && (
                             <div className="mb-2 px-1">
